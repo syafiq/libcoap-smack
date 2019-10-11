@@ -1823,3 +1823,28 @@ smack_client_initialize(smack_client_info* session,  uint16_t message_id, uint8_
   session->key_a = computeKeyA(key);
   session->key_b = computeKeyB(key);
 }
+
+//S: Simulates client key renewal by KDC
+void
+smack_client_renew_key()
+{
+  smack_client_info* session = smack_get_client_session();
+
+  //Initializes session information structure with new values
+  session->initial_mid += SMACK_SESSION_LENGTH; //New initial mid incremented by session size
+  session->current_mid = session->initial_mid; //Current MID is now starting from initial
+
+  //Calculates key for this specific session from master session key and initial mid
+  uint8_t key[SMACK_KEY_SIZE];
+  uint8_t initial_mid_array[2] = { session->initial_mid >> 8, session->initial_mid & 0xFF }; //Initial mid needs to be in array form
+  PRF(session->master_session_key, SMACK_KEY_SIZE, initial_mid_array, 2, key, SMACK_KEY_SIZE);
+
+  //Saves the new session key and generates keys a & b
+  memcpy(session->session_key, key, SMACK_KEY_SIZE);
+  session->j = 0;				//Resets index for session key j
+  memcpy(session->session_key_j, key, SMACK_KEY_SIZE);	//Ks_j is initially Ks
+  session->key_a = computeKeyA(key);
+  session->key_b = computeKeyB(key);
+
+  //Tdebug("RENEWED SESSION\r\n");
+}

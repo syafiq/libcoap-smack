@@ -543,6 +543,7 @@ size_t coap_pdu_encode_header(coap_pdu_t *pdu, coap_proto_t proto);
 /*SMACK*/
 /* ====================================== */
 #define SMACK_KEY_SIZE 32
+#define SMACK_SESSION_LENGTH 127
 
 //S: Structure for holding SMACK client session information
 typedef struct {
