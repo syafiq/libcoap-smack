@@ -1849,21 +1849,21 @@ smack_client_renew_key()
   //Tdebug("RENEWED SESSION\r\n");
 }
 
-////S: Function that sets the Validity Check portion of the token field
-//int
-//smack_set_header_token_validity(void *packet, uint16_t mac)
-//{
-//  size_t token_len = SMACK_AUTH_FIELD_SIZE;
-//  size_t validity_len = SMACK_VALIDITY_FIELD_SIZE;
-//
-//  coap_pdu_t *const coap_pkt = (coap_pdu_t *) packet;
-//
-//  //Sets last 2 bytes of token
-//  coap_pkt->token[token_len - 2] = mac >> 8;
-//  coap_pkt->token[token_len - 1] = mac & 0xFF;
-//
-//  return validity_len;
-//}
+//S: Function that sets the Validity Check portion of the token field
+int
+smack_set_header_token_validity(void *packet, uint16_t mac)
+{
+  size_t token_len = SMACK_AUTH_FIELD_SIZE;
+  size_t validity_len = SMACK_VALIDITY_FIELD_SIZE;
+
+  coap_pdu_t *const coap_pkt = (coap_pdu_t *) packet;
+
+  //Sets last 2 bytes of token
+  coap_pkt->token[token_len - 2] = mac >> 8;
+  coap_pkt->token[token_len - 1] = mac & 0xFF;
+
+  return validity_len;
+}
 
 //S: Function that calculates the MAC for a packet
 uint16_t
