@@ -1798,3 +1798,28 @@ computeKeyCj(uint8_t *session_key_j, int index)
 
   return (session_key_j[first_byte] << 8) + session_key_j[first_byte + 1];
 }
+
+//S: Function that sets session information for a SMACK client
+void
+smack_client_initialize(smack_client_info* session,  uint16_t message_id, uint8_t *master_session_key)
+{
+  //Sets up message IDs and the pointer to session information
+  smack_client_session = session; //FIXME: Enable multiple(?)
+  session->initial_mid = message_id;
+  session->current_mid = message_id;
+
+  //Saves the master session key
+  memcpy(session->master_session_key, master_session_key, SMACK_KEY_SIZE);
+
+  //Calculates key for this specific session from master session key and initial mid
+  uint8_t key[SMACK_KEY_SIZE];
+  uint8_t initial_mid_array[2] = { message_id >> 8, message_id & 0xFF }; //Initial mid needs to be in array form
+  PRF(master_session_key, SMACK_KEY_SIZE, initial_mid_array, 2, key, SMACK_KEY_SIZE);
+
+  //Saves the session key and generates keys a & b
+  memcpy(session->session_key, key, SMACK_KEY_SIZE);
+  session->j = 0;					//J starts at 0
+  memcpy(session->session_key_j, key, SMACK_KEY_SIZE);	//Ks_j is initially Ks
+  session->key_a = computeKeyA(key);
+  session->key_b = computeKeyB(key);
+}
