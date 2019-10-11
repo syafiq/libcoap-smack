@@ -1848,3 +1848,105 @@ smack_client_renew_key()
 
   //Tdebug("RENEWED SESSION\r\n");
 }
+
+////S: Function that sets the Validity Check portion of the token field
+//int
+//smack_set_header_token_validity(void *packet, uint16_t mac)
+//{
+//  size_t token_len = SMACK_AUTH_FIELD_SIZE;
+//  size_t validity_len = SMACK_VALIDITY_FIELD_SIZE;
+//
+//  coap_pdu_t *const coap_pkt = (coap_pdu_t *) packet;
+//
+//  //Sets last 2 bytes of token
+//  coap_pkt->token[token_len - 2] = mac >> 8;
+//  coap_pkt->token[token_len - 1] = mac & 0xFF;
+//
+//  return validity_len;
+//}
+
+//S: Function that calculates the MAC for a packet
+uint16_t
+computeShortMAC(void *packet, int index)
+{
+  coap_pdu_t *const coap_pkt = (coap_pdu_t *) packet;
+  smack_client_info* session = smack_get_client_session();
+
+  //Update value of session_key_j if needed
+  int new_j = (index + 2) / SMACK_PORTION_SIZE;
+  if(new_j > session->j)
+  {
+    uint8_t temp[SMACK_KEY_SIZE];
+    memcpy(temp, session->session_key_j, SMACK_KEY_SIZE);
+    PRF(session->session_key, SMACK_KEY_SIZE, temp, SMACK_KEY_SIZE, session->session_key_j, SMACK_KEY_SIZE);
+    session->j = new_j;
+    //Tdebug("RENEWED SKJ\r\n");
+  }
+
+  //Keys to be used
+  uint16_t key_a = session->key_a;
+  uint16_t key_b = session->key_b;
+  uint16_t key_c = computeKeyCj(session->session_key_j, index);
+
+  //Creates 3 16 bit chunks of the message header (bit 0-47)
+  uint16_t chunk_m0 = (/*coap_pkt->version*/ 1 << 14) + (coap_pkt->type << 12) + (coap_pkt->token_length << 8) + coap_pkt->code; //Version (not set yet), type, token len & code (bit 0-15)
+  uint16_t chunk_m1 = coap_pkt->tid;					//Message ID (bit 16-31)
+  uint16_t chunk_m2 = (coap_pkt->token[0] << 8) + (coap_pkt->token[1]);	//First 16 bits of token (Request ID field) (bit 32-47)
+
+  //debug("Session Key: %u\r\n", session->session_key);
+  /*debug("Key A: %u\r\n", key_a);
+  debug("Key B: %u\r\n", key_b);
+  debug("Key C: %u\r\n", key_c);
+
+  debug("Chunk M0: %u\r\n", chunk_m0);
+  debug("Chunk M1: %u\r\n", chunk_m1);
+  debug("Chunk M2: %u\r\n", chunk_m2);
+
+  debug("Index: %i\r\n", index);*/
+
+  /*
+  debug("Version: %i\r\n", coap_pkt->version);
+  debug("Type: %i\r\n", coap_pkt->type);
+  debug("Token len: %i\r\n", coap_pkt->token_len);
+  debug("Code: %i\r\n", coap_pkt->code);
+  */
+
+  /*key_a = 59730, key_b = 56825, key_c = 32392;*/
+  /*chunk_m0 = 17409, chunk_m1 = 0,*/ //chunk_m2 = 56707;
+  
+  //Performs the actual calculation [(m0 + a * m1 + a^2 * m2) * b + c]
+  uint16_t result;
+  uint16_t key_a_squared = galois_shift_multiply(key_a, key_a);
+  
+  result = chunk_m0 ^ galois_shift_multiply(key_a, chunk_m1) ^ galois_shift_multiply(key_a_squared, chunk_m2);
+  result = galois_shift_multiply(result, key_b) ^ key_c;
+  //Tdebug("SMACK: %u\r\n", result);
+
+  /* SHA Testing section */
+  /*unsigned char buf_sha[1] = { 0x41 }; //"A"
+  int buf_sha_len = 1;
+  char md_sha[SHA256_DIGEST_STRING_LENGTH];
+  SHA256_CTX ctx256;
+  SHA256_Init(&ctx256);
+  SHA256_Update(&ctx256, (unsigned char*)buf_sha, buf_sha_len);
+  SHA256_End(&ctx256, md_sha);
+  debug("SHA256: %s\r\n", md_sha);*/
+  /* END */
+
+  /* HMAC Testing section */
+  /*unsigned char buf[DTLS_HMAC_DIGEST_SIZE];
+  unsigned char key[] = "key";
+  unsigned char text[] = "The quick brown fox jumps over the lazy dog";
+  int key_len = 3;
+  int text_len = strlen(text);
+  doHMAC(key, key_len, text, text_len, buf, DTLS_HMAC_DIGEST_SIZE);
+
+  int j;
+  debug("HMAC: ");
+  for(j = 0; j < DTLS_HMAC_DIGEST_SIZE; j++)
+    debug("%02x", buf[j]);
+  debug("\r\n");*/
+  /* END */
+
+  return result;
+}
