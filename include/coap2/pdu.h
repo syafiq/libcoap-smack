@@ -540,4 +540,23 @@ int coap_get_data(const coap_pdu_t *pdu,
 
 size_t coap_pdu_encode_header(coap_pdu_t *pdu, coap_proto_t proto);
 
+/*SMACK*/
+/* ====================================== */
+#define SMACK_KEY_SIZE 32
+
+//S: Structure for holding SMACK client session information
+typedef struct {
+   uint16_t initial_mid;
+   uint16_t current_mid;
+
+   uint8_t master_session_key[SMACK_KEY_SIZE]; //Master key (when session expires creates new session key)
+   uint8_t session_key[SMACK_KEY_SIZE];
+   uint8_t session_key_j[SMACK_KEY_SIZE];       //Key periodically shifted by PRF
+   uint8_t j;                                   //Counter for when to shift session key j
+
+   uint16_t key_a;
+   uint16_t key_b;
+} smack_client_info;
+
+
 #endif /* COAP_PDU_H_ */

@@ -43,6 +43,11 @@
                       * identity) in bytes. */
 #define MAX_KEY   64 /* Maximum length of a key (i.e., PSK) in bytes. */
 
+/*SMACK VARIABLES*/
+/* ============================================================= */
+static smack_client_info* smack_client_session;		//S: Stores client session information for SMACK
+/* ============================================================= */
+
 int flags = 0;
 
 static unsigned char _token_data[8];
@@ -1764,4 +1769,32 @@ PRF(const unsigned char *secret, size_t secret_len, const unsigned char *data, s
   return length;
 }
 
+//S: Function that returns the correct session info structure for a client //FIXME: Enable multiple(?)
+smack_client_info*
+smack_get_client_session()
+{
+  return smack_client_session;
+}
 
+//S: Calculates key A (second two bytes of session key)
+uint16_t
+computeKeyA(uint8_t *session_key)
+{
+  return (session_key[2] << 8) + session_key[3];
+}
+
+//S: Calculates key B (first two bytes of session key)
+uint16_t
+computeKeyB(uint8_t *session_key)
+{
+  return (session_key[0] << 8) + session_key[1];
+}
+
+//S: Calculates key C (it also depends on an index)
+uint16_t
+computeKeyCj(uint8_t *session_key_j, int index)
+{
+  int first_byte = (((index + 2) % 16) * 16) / 8;
+
+  return (session_key_j[first_byte] << 8) + session_key_j[first_byte + 1];
+}
