@@ -12,7 +12,6 @@
 /* ========================================== */
 #include <ext/tinydtls/sha2/sha2.h>
 #include <ext/tinydtls/hmac.h>
-
 /* ========================================== */
 
 #include <string.h>
@@ -170,9 +169,16 @@ coap_new_request(coap_context_t *ctx,
   pdu->tid = coap_new_message_id(session);
   pdu->code = m;
 
+  printf("DEBUG: type %hhu \n", pdu->type);
+  printf("DEBUG: tid/mid %hu \n", pdu->tid);
+  printf("DEBUG: code %hhu \n", pdu->code);
+
   if ( !coap_add_token(pdu, the_token.length, the_token.s)) {
     coap_log(LOG_DEBUG, "cannot add token to request\n");
   }
+
+  printf("DEBUG: token %hhu \n", pdu->token);
+  printf("DEBUG: token_length %hhu \n", pdu->token_length);
 
   if (options)
     coap_add_optlist_pdu(pdu, options);
@@ -1894,22 +1900,21 @@ computeShortMAC(void *packet, int index)
   uint16_t chunk_m2 = (coap_pkt->token[0] << 8) + (coap_pkt->token[1]);	//First 16 bits of token (Request ID field) (bit 32-47)
 
   //debug("Session Key: %u\r\n", session->session_key);
-  /*debug("Key A: %u\r\n", key_a);
-  debug("Key B: %u\r\n", key_b);
-  debug("Key C: %u\r\n", key_c);
+  printf("Key A: %u\r\n", key_a);
+  printf("Key B: %u\r\n", key_b);
+  printf("Key C: %u\r\n", key_c);
 
-  debug("Chunk M0: %u\r\n", chunk_m0);
-  debug("Chunk M1: %u\r\n", chunk_m1);
-  debug("Chunk M2: %u\r\n", chunk_m2);
+  printf("Chunk M0: %u\r\n", chunk_m0);
+  printf("Chunk M1: %u\r\n", chunk_m1);
+  printf("Chunk M2: %u\r\n", chunk_m2);
 
-  debug("Index: %i\r\n", index);*/
+  printf("Index: %i\r\n", index);
 
-  /*
-  debug("Version: %i\r\n", coap_pkt->version);
-  debug("Type: %i\r\n", coap_pkt->type);
-  debug("Token len: %i\r\n", coap_pkt->token_len);
-  debug("Code: %i\r\n", coap_pkt->code);
-  */
+  /*printf("Version: %i\r\n", coap_pkt->version);*/
+  printf("Type: %i\r\n", coap_pkt->type);
+  printf("Token len: %i\r\n", coap_pkt->token_length);
+  printf("Code: %i\r\n", coap_pkt->code);
+ 
 
   /*key_a = 59730, key_b = 56825, key_c = 32392;*/
   /*chunk_m0 = 17409, chunk_m1 = 0,*/ //chunk_m2 = 56707;
