@@ -8,6 +8,13 @@
  * use.
  */
 
+/* SMACK */
+/* ========================================== */
+#include <ext/tinydtls/sha2/sha2.h>
+#include <ext/tinydtls/hmac.h>
+
+/* ========================================== */
+
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -1613,4 +1620,146 @@ main(int argc, char **argv) {
   close_output();
 
   return result;
+}
+
+/* ============================== SMACK ================================ */
+/* Variables */
+#define SMACK_GALOIS_FIELD_SIZE 16
+#define SMACK_KEY_SIZE 32
+
+/*----------------------------------------------------------------------------*/
+/*- Galois -------------------------------------------------------------------*/
+/*----------------------------------------------------------------------------*/
+/* Functions for calculating the Galois field mathematics                     */
+/* http://web.eecs.utk.edu/~plank/plank/papers/CS-07-593/README.html          */
+
+//Octal values
+static uint16_t prim_poly_s[16] = 
+{/* 0 */ 0, 
+/*  1 */ 1, 
+/*  2 */ 07,
+/*  3 */ 013,
+/*  4 */ 023,
+/*  5 */ 045,
+/*  6 */ 0103,
+/*  7 */ 0211,
+/*  8 */ 0435,
+/*  9 */ 01021,
+/* 10 */ 02011,
+/* 11 */ 04005,
+/* 12 */ 010123,
+/* 13 */ 020033,
+/* 14 */ 042103,
+/* 15 */ 0100003 }; //END
+/* 16    0210013 */
+
+uint32_t
+prim_poly_func(uint16_t w)
+{
+	if(w == 16)
+		return 0210013;
+	else
+		return prim_poly_s[w];
+}
+
+uint16_t
+nwm1_func(uint16_t w)
+{
+	if(w == 16)
+		return 0xffff;
+	else
+		return (1 << w) - 1;
+}
+
+//Function for performing multiplication in Galois fields (field size w 0-16 supported)
+uint16_t
+galois_shift_multiply(uint16_t x, uint16_t y)
+{
+	uint16_t prod;
+	uint16_t i, j, ind;
+	uint16_t k;
+	uint16_t scratch[SMACK_GALOIS_FIELD_SIZE + 1];
+        uint16_t w = SMACK_GALOIS_FIELD_SIZE;
+	uint32_t prim_poly = 0210013; //prim_poly_func(w);
+        uint16_t nwm1 = 0xffff; //nwm1_func(w);
+
+	prod = 0;
+	for (i = 0; i < w; i++)
+	{
+		scratch[i] = y;
+		if (y & (1 << (w - 1)))
+		{
+			y = y << 1;
+			y = (y ^ prim_poly) & nwm1;
+		}
+		else
+		{
+			y = y << 1;
+		}
+	}
+	for (i = 0; i < w; i++)
+	{
+		ind = (1 << i);
+		if (ind & x)
+		{
+			j = 1;
+			for (k = 0; k < w; k++)
+			{
+				prod = prod ^ (j & scratch[i]);
+				j = (j << 1);
+			}
+		}
+	}
+	return prod;
+}
+
+//S: Performs HMAC calculation for specific data and key. Places result in buf.
+size_t
+doHMAC(const unsigned char *key, size_t key_len, const unsigned char *text, size_t text_len, unsigned char *buf, size_t buf_len)
+{
+  size_t len;
+  dtls_hmac_context_t *ctx;
+
+  dtls_hmac_storage_init();
+  ctx = dtls_hmac_new(key, key_len);
+
+  dtls_hmac_update(ctx, text, text_len);
+
+  len = dtls_hmac_finalize(ctx, buf);
+
+  dtls_hmac_free(ctx);
+
+  return len;
+}
+
+//S: Pseudo Random Function from TLS.
+size_t
+PRF(const unsigned char *secret, size_t secret_len, const unsigned char *data, size_t data_len, unsigned char *buf, size_t buf_len)
+{
+  int hashLength = DTLS_SHA256_DIGEST_LENGTH;
+  int length = SMACK_KEY_SIZE;
+  int iterations = (length + hashLength - 1) / hashLength;
+
+  int new_A_len = hashLength;
+  unsigned char new_A[new_A_len];
+
+  int concat_len = new_A_len + data_len;
+  unsigned char concat[concat_len];
+
+  int i;
+  for (i = 0; i < iterations; i++) //FIXME Loop
+  {
+    //Calculate first HMAC (of secret & data (A))
+    //doHMAC(secret, secret_len, A, A_len, new_A, new_A_len);
+    doHMAC(secret, secret_len, data, data_len, new_A, new_A_len);
+
+    //Concatenate the previous result with data
+    memcpy(concat, new_A, new_A_len);
+    memcpy(concat + new_A_len, data, data_len);
+
+    //Perform final HMAC of secret and concatenated data
+    doHMAC(secret, secret_len, concat, concat_len, buf, buf_len);
+  }
+
+  return length;
 }
