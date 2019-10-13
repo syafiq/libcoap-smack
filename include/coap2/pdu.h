@@ -562,5 +562,10 @@ typedef struct {
    uint16_t key_b;
 } smack_client_info;
 
+void
+smack_client_initialize(smack_client_info* session,  uint16_t message_id, uint8_t *master_session_key);
+
+smack_client_info*
+smack_get_client_session();
 
 #endif /* COAP_PDU_H_ */

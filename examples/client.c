@@ -49,8 +49,8 @@ static smack_client_info* smack_client_session;		//S: Stores client session info
 
 int flags = 0;
 
-static unsigned char _token_data[8];
-coap_binary_t the_token = { 0, _token_data };
+static unsigned char _token_data[2];
+coap_binary_t the_token = { 2, _token_data };
 
 #define FLAGS_BLOCK 0x01
 
@@ -165,20 +165,44 @@ coap_new_request(coap_context_t *ctx,
   if (!(pdu = coap_new_pdu(session)))
     return NULL;
 
+  smack_client_info* session_smack = smack_get_client_session();
+
+  int messageIndex = session_smack->current_mid - session_smack->initial_mid;     //# of messages sent this session
+  if(messageIndex >= SMACK_SESSION_LENGTH)                            //If over session length renew session  
+    smack_client_renew_key();
+
+  messageIndex = session_smack->current_mid - session_smack->initial_mid; //Recalculate message index (session may have reset)
+
+  pdu->tid = session_smack->current_mid;                //S: Sets the message ID in packet (from the session)
+  //smack_set_header_token_validity(request, computeShortMAC(request, messageIndex)); //S: Computes and sets the MAC for this message
+  session_smack->current_mid += 1;                          //S: Increments message ID in session
+
   pdu->type = msgtype;
-  pdu->tid = coap_new_message_id(session);
+  //pdu->tid = coap_new_message_id(session);
   pdu->code = m;
 
-  printf("DEBUG: type %hhu \n", pdu->type);
-  printf("DEBUG: tid/mid %hu \n", pdu->tid);
-  printf("DEBUG: code %hhu \n", pdu->code);
+  /*SMACK*/
+  uint16_t chunk_m0 = (1 << 14) + (pdu->type << 12) + (the_token.length << 8) + pdu->code;
+  uint16_t chunk_m1 = pdu->tid;
+  uint16_t chunk_m2 = the_token.s;
+
+  printf("DEBUG: chunk_m0 %u\r\n", chunk_m0);
+  printf("DEBUG: chunk_m1 %u\r\n", chunk_m1);
+  printf("DEBUG: chunk_m2 %u\r\n", chunk_m2);
+
+  printf("\n");
+  printf("DEBUG: type %hhu \r\n", pdu->type);
+  printf("DEBUG: tid/mid %hu \r\n", pdu->tid);
+  printf("DEBUG: code %hhu \r\n", pdu->code);
+  printf("DEBUG: token %hhu \r\n", the_token.s);
+  printf("DEBUG: token_length %hhu \r\n", the_token.length);
 
   if ( !coap_add_token(pdu, the_token.length, the_token.s)) {
     coap_log(LOG_DEBUG, "cannot add token to request\n");
   }
 
-  printf("DEBUG: token %hhu \n", pdu->token);
-  printf("DEBUG: token_length %hhu \n", pdu->token_length);
+  //printf("DEBUG: token %hhu \n", pdu->token);
+  //printf("DEBUG: token_length %hhu \n", pdu->token_length);
 
   if (options)
     coap_add_optlist_pdu(pdu, options);
