@@ -165,20 +165,8 @@ coap_new_request(coap_context_t *ctx,
   if (!(pdu = coap_new_pdu(session)))
     return NULL;
 
-  smack_client_info* session_smack = smack_get_client_session();
-
-  int messageIndex = session_smack->current_mid - session_smack->initial_mid;     //# of messages sent this session
-  if(messageIndex >= SMACK_SESSION_LENGTH)                            //If over session length renew session  
-    smack_client_renew_key();
-
-  messageIndex = session_smack->current_mid - session_smack->initial_mid; //Recalculate message index (session may have reset)
-
-  pdu->tid = session_smack->current_mid;                //S: Sets the message ID in packet (from the session)
-  //smack_set_header_token_validity(request, computeShortMAC(request, messageIndex)); //S: Computes and sets the MAC for this message
-  session_smack->current_mid += 1;                          //S: Increments message ID in session
-
   pdu->type = msgtype;
-  //pdu->tid = coap_new_message_id(session);
+  pdu->tid = coap_new_message_id(session);
   pdu->code = m;
 
   /*SMACK*/
